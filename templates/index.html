@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Easy Cars — Price Estimator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+
+<body>
+
+  <!-- LEFT PANEL -->
+  <aside class="panel-left">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      Easy Cars
+    </div>
+
+    <div class="left-content">
+      <p class="eyebrow">Used car value estimator</p>
+      <h1 class="headline">
+        What's your<br>car worth<span class="amber">?</span>
+      </h1>
+
+      {% if prediction %}
+      <div class="result-block" id="result">
+        <span class="result-meta">Estimated market value</span>
+        <span class="result-figure">${{ "{:,.0f}".format(prediction) }}</span>
+        <span class="result-cents">.{{ "%02d"|format((prediction % 1 * 100)|int) }}</span>
+      </div>
+      {% else %}
+      <div class="placeholder-block">
+        <span class="placeholder-line"></span>
+        <span class="placeholder-hint">Fill the form to get your estimate</span>
+      </div>
+      {% endif %}
+
+      <div class="car-image-wrap">
+        <img src="{{ url_for('static', filename='car_hero.png') }}" alt="Car" class="car-image" style="opacity:0" />
+        <div class="car-glow"></div>
+      </div>
+    </div>
+
+    <div class="panel-footer">
+      Powered by Linear Regression &nbsp;·&nbsp; scikit-learn
+    </div>
+  </aside>
+
+  <!-- RIGHT PANEL -->
+  <main class="panel-right">
+    <div class="form-header">
+      <span class="step-label">01 &mdash; Vehicle details</span>
+      {% if error %}
+      <span class="error-tag">⚠ {{ error }}</span>
+      {% endif %}
+    </div>
+
+    <form method="POST" action="/" class="estimate-form">
+
+      <div class="row-2">
+        <div class="field">
+          <label for="model_year">Year</label>
+          <input id="model_year" name="model_year" type="number" min="1990" max="2025"
+            value="{{ request.form.get('model_year', 2020) }}" required />
+        </div>
+        <div class="field">
+          <label for="milage">Mileage <span class="unit">mi</span></label>
+          <input id="milage" name="milage" type="number" min="0" value="{{ request.form.get('milage', 30000) }}"
+            required />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="brand">Brand</label>
+        <div class="select-wrap">
+          <select id="brand" name="brand" required>
+            {% set brands = ["Acura","Alfa","Aston","Audi","Bentley","BMW","Buick","Cadillac",
+            "Chevrolet","Chrysler","Dodge","Ferrari","FIAT","Ford","Genesis",
+            "GMC","Honda","Hummer","Hyundai","INFINITI","Jaguar","Jeep","Kia",
+            "Land","Lexus","Lincoln","Lotus","Lucid","Maserati","Maybach",
+            "Mazda","McLaren","Mercedes-Benz","Mercury","MINI","Mitsubishi",
+            "Nissan","Plymouth","Polestar","Pontiac","Porsche","RAM","Rivian",
+            "Rolls-Royce","Saab","Saturn","Scion","smart","Subaru","Suzuki",
+            "Tesla","Toyota","Volkswagen","Volvo","Other"] %}
+            {% for b in brands %}
+            <option value="{{ b }}" {% if request.form.get('brand', 'BMW' )==b %}selected{% endif %}>{{ b }}</option>
+            {% endfor %}
+          </select>
+          <svg class="chevron" viewBox="0 0 10 6">
+            <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" />
+          </svg>
+        </div>
+      </div>
+
+      <div class="divider-label">02 &mdash; Specs</div>
+
+      <div class="row-2">
+        <div class="field">
+          <label for="fuel_type">Fuel type</label>
+          <div class="select-wrap">
+            <select id="fuel_type" name="fuel_type" required>
+              {% for ft in ["Gasoline","Diesel","Hybrid","Plug-In Hybrid","E85 Flex Fuel","not supported"] %}
+              <option value="{{ ft }}" {% if request.form.get('fuel_type', 'Gasoline' )==ft %}selected{% endif %}>{{ ft
+                }}</option>
+              {% endfor %}
+            </select>
+            <svg class="chevron" viewBox="0 0 10 6">
+              <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" />
+            </svg>
+          </div>
+        </div>
+        <div class="field">
+          <label for="transmission">Transmission</label>
+          <div class="select-wrap">
+            <select id="transmission" name="transmission" required>
+              {% for t in ["Automatic","Manual","CVT","Dual-Clutch","Other"] %}
+              <option value="{{ t }}" {% if request.form.get('transmission', 'Automatic' )==t %}selected{% endif %}>{{ t
+                }}</option>
+              {% endfor %}
+            </select>
+            <svg class="chevron" viewBox="0 0 10 6">
+              <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="divider-label">03 &mdash; History</div>
+
+      <div class="row-2">
+        <div class="field">
+          <label for="accident">Accident history</label>
+          <div class="select-wrap">
+            <select id="accident" name="accident" required>
+              <option value="None reported" {% if request.form.get('accident','None reported')=='None reported'
+                %}selected{% endif %}>None reported</option>
+              <option value="At least 1 accident or damage reported" {% if
+                request.form.get('accident')=='At least 1 accident or damage reported' %}selected{% endif %}>1+
+                accidents reported</option>
+            </select>
+            <svg class="chevron" viewBox="0 0 10 6">
+              <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" />
+            </svg>
+          </div>
+        </div>
+        <div class="field">
+          <label for="clean_title">Clean title</label>
+          <div class="select-wrap">
+            <select id="clean_title" name="clean_title" required>
+              <option value="Yes" {% if request.form.get('clean_title','Yes')=='Yes' %}selected{% endif %}>Yes</option>
+              <option value="Unknown" {% if request.form.get('clean_title')=='Unknown' %}selected{% endif %}>Unknown
+              </option>
+            </select>
+            <svg class="chevron" viewBox="0 0 10 6">
+              <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn">
+        <span>Get estimate</span>
+        <svg viewBox="0 0 20 20" fill="none">
+          <path d="M4 10h12M11 5l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
+      </button>
+
+    </form>
+  </main>
+
+
+<script>
+  const img = document.querySelector('.car-image');
+  function processCarImage() {
+    const canvas = document.createElement('canvas');
+    canvas.width  = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    canvas.className = img.className;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    for (let i = 0; i < d.data.length; i += 4) {
+      const r = d.data[i], g = d.data[i+1], b = d.data[i+2];
+      if (r > 210 && g > 210 && b > 210) d.data[i+3] = 0;
+    }
+    ctx.putImageData(d, 0, 0);
+    canvas.style.opacity = '1';
+    canvas.style.transition = 'opacity 0.25s ease';
+    img.replaceWith(canvas);
+  }
+  img.complete ? processCarImage() : img.addEventListener('load', processCarImage);
+</script>
+</body>
+
+</html>
